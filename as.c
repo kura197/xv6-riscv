@@ -14,8 +14,8 @@ struct dictinary{
 static int dict_num;
 static struct dictinary dict[64];
 
-void elf_init(FILE *dst, int addr);
-int parse(FILE *dst, char str[], int addr, int exec);
+void elf_init(int fd_dst, int addr);
+int parse(int fd_dst, char str[], int addr, int exec);
 int get_reg(char reg_name[]);
 int gen_binary_R(int opcode, int rd, int funct3, int rs1, int rs2, int funct7);
 int gen_binary_I(int opcode, int rd, int funct3, int rs1, int imm);
@@ -23,13 +23,14 @@ int gen_binary_S(int opcode, int funct3, int rs1, int rs2, int imm);
 int gen_binary_B(int opcode, int funct3, int rs1, int rs2, int imm);
 int gen_binary_U(int opcode, int rd, int imm);
 int gen_binary_J(int opcode, int rd, int imm);
-void str2bin(FILE *dst);
+void str2bin(int fd_dst);
 int count_str();
 void set_dict(char* str, int num, int addr);
 int search_dict(char* str);
 
 int main(int argc, char* argv[]){
-    FILE *src, *dst;
+    //FILE *src, *dst;
+    int fd_src, fd_dst;
     char line[128];
     char *str;
     char *p;
@@ -40,14 +41,14 @@ int main(int argc, char* argv[]){
         exit();
     }
 
-    if((src = fopen(argv[SRC], "r")) == NULL){
+    if((fd_src = open(argv[SRC], 0)) < 0){
         printf(2, "\"%s\" doesn't exist.\n", argv[SRC]);
         exit();
     }
-    dst = fopen(argv[DST], "wb");
+    fd_dst = open(argv[DST], 1);
 
 
-    while(fgets(line, 128, src) != NULL){
+    while(fgets(line, 128, fd_src) > 0){
         if(line[0] == '\n')
             continue;
         str = strtok(line, ",\t \n");
@@ -57,41 +58,41 @@ int main(int argc, char* argv[]){
         }
         else if(str[0] == '#')
             continue;
-        else if((p = strchr(str, ':')) == NULL)
-            addr = parse(dst, str, addr, 0);
+        else if((p = strchr(str, ':')) == 0)
+            addr = parse(fd_dst, str, addr, 0);
         else
             set_dict(str, (p - str), addr);
     }
 
 
-    if(fseek(src, 0, SEEK_SET) != 0){
-        printf(2, "src fseek filed.\n");
+    if(fseek(fd_src, 0, SEEK_SET) != 0){
+        printf(2, "src fdeek filed.\n");
         exit();
     }
 
-    elf_init(dst, addr);
+    elf_init(fd_dst, addr);
 
     addr = 0;
-    while(fgets(line, 128, src) != NULL){
+    while(fgets(line, 128, fd_src) > 0){
         if(line[0] == '\n')
             continue;
         str = strtok(line, ",\t \n");
         if(str[0] == '.'){
             if(!strcmp(str, ".string"))
-                str2bin(dst);
+                str2bin(fd_dst);
         }
         else if(str[0] == '#')
             continue;
-        else if((p = strchr(str, ':')) == NULL){
-            addr = parse(dst, str, addr, 1);
+        else if((p = strchr(str, ':')) == 0){
+            addr = parse(fd_dst, str, addr, 1);
         }
     }
 
     int padding = 0;
     for(int i=0; i<50;i++)
-        fwrite(&padding, sizeof(int), 1, dst);
-    fclose(src);
-    fclose(dst);
+        write(fd_dst, &padding, 4);
+    close(fd_src);
+    close(fd_dst);
     exit();
 }
 
@@ -111,7 +112,7 @@ int search_dict(char* str){
     return -1;
 }
 
-int parse(FILE *dst, char str[], int addr, int exec){
+int parse(int fd_dst, char str[], int addr, int exec){
     char* operand;
     int rs1, rs2, rd, imm;
     int bin;
@@ -240,7 +241,7 @@ int parse(FILE *dst, char str[], int addr, int exec){
         operand = strtok(NULL, ",\t \n");
         imm = search_dict(operand);
         bin = gen_binary_U(0b0010111, 6, (imm >> 12));
-        if(exec) fwrite(&bin, sizeof(int), 1, dst);
+        if(exec) write(fd_dst, &bin, 4);
         addr += 4;
         bin = gen_binary_I(0b1100111, 1, 0b000, 6, (imm & 0xfff));
     }
@@ -253,7 +254,7 @@ int parse(FILE *dst, char str[], int addr, int exec){
         operand = strtok(NULL, ",\t \n");
         imm = search_dict(operand) - addr;
         bin = gen_binary_U(0b0010111, rd, (imm & ~0xfff));
-        if(exec) fwrite(&bin, sizeof(int), 1, dst);
+        if(exec) write(fd_dst, &bin, 4);
         addr += 4;
         bin = gen_binary_I(0b0010011, rd, 0b000, rd, (imm & 0xfff));
 
@@ -261,7 +262,7 @@ int parse(FILE *dst, char str[], int addr, int exec){
     else{
         return -1;
     }
-    if(exec) fwrite(&bin, sizeof(int), 1, dst);
+    if(exec) write(fd_dst, &bin, 4);
     addr += 4;
     return addr;
 }
@@ -302,14 +303,14 @@ int gen_binary_J(int opcode, int rd, int imm){
     return bin;
 }
 
-void str2bin(FILE *dst){
+void str2bin(int fd_dst){
     char *string = strtok(NULL, "\"");
     while(*string != '\0'){
         if(*string != '\\')
-            fwrite(string, sizeof(char), 1, dst);
+            write(fd_dst, string, 1);
         else if(*(string+1) == 'n'){
             char newline = '\n';
-            fwrite(&newline, sizeof(char), 1, dst);
+            write(fd_dst, &newline, 1);
             string++;
         }
         string++;
@@ -402,7 +403,7 @@ int get_reg(char reg_name[]){
     }
 }
 
-void elf_init(FILE *dst, int addr){
+void elf_init(int fd_dst, int addr){
     int i;
     int magic = 0x464C457FU;  // "\x7FELF" in little endian
     char class = 1;
@@ -427,45 +428,45 @@ void elf_init(FILE *dst, int addr){
     short shstrndx = 0x0f;
 
     int p_type = 0x01;
-    int p_offset = 0x54;
+    int p_offdet = 0x54;
     int p_vaddr = 0x00;
     int p_paddr = 0x00;
-    int p_filesz = addr + p_offset;
-    int p_memsz = addr + p_offset;
+    int p_filesz = addr + p_offdet;
+    int p_memsz = addr + p_offdet;
     int p_flags = 0x07;
     int p_align = 0x04;
 
-    fwrite(&magic, sizeof(int), 1, dst);
-    fwrite(&class, sizeof(char), 1, dst);
-    fwrite(&data, sizeof(char), 1, dst);
-    fwrite(&elf_version, sizeof(char), 1, dst);
-    fwrite(&osabi, sizeof(char), 1, dst);
-    fwrite(&abiversion, sizeof(char), 1, dst);
+    write(fd_dst, &magic,  4);
+    write(fd_dst, &class,  1);
+    write(fd_dst, &data,  1);
+    write(fd_dst, &elf_version,  1);
+    write(fd_dst, &osabi,  1);
+    write(fd_dst, &abiversion,  1);
     for(i = 0; i < 7; i++)
-        fwrite(&padding, sizeof(char), 1, dst);
+        write(fd_dst, &padding,  1);
 
-    fwrite(&etype, sizeof(short), 1, dst);
-    fwrite(&machine, sizeof(short), 1, dst);
-    fwrite(&version, sizeof(int), 1, dst);
-    fwrite(&entry, sizeof(int), 1, dst);
-    fwrite(&phoff, sizeof(int), 1, dst);
-    fwrite(&shoff, sizeof(int), 1, dst);
-    fwrite(&flags, sizeof(int), 1, dst);
-    fwrite(&ehsize, sizeof(short), 1, dst);
-    fwrite(&phentsize, sizeof(short), 1, dst);
-    fwrite(&phnum, sizeof(short), 1, dst);
-    fwrite(&shentsize, sizeof(short), 1, dst);
-    fwrite(&shnum, sizeof(short), 1, dst);
-    fwrite(&shstrndx, sizeof(short), 1, dst);
+    write(fd_dst, &etype,  2);
+    write(fd_dst, &machine,  2);
+    write(fd_dst, &version,  4);
+    write(fd_dst, &entry,  4);
+    write(fd_dst, &phoff,  4);
+    write(fd_dst, &shoff,  4);
+    write(fd_dst, &flags,  4);
+    write(fd_dst, &ehsize,  2);
+    write(fd_dst, &phentsize,  2);
+    write(fd_dst, &phnum,  2);
+    write(fd_dst, &shentsize,  2);
+    write(fd_dst, &shnum,  2);
+    write(fd_dst, &shstrndx,  2);
 
-    fwrite(&p_type, sizeof(int), 1, dst);
-    fwrite(&p_offset, sizeof(int), 1, dst);
-    fwrite(&p_vaddr, sizeof(int), 1, dst);
-    fwrite(&p_paddr, sizeof(int), 1, dst);
-    fwrite(&p_filesz, sizeof(int), 1, dst);
-    fwrite(&p_memsz, sizeof(int), 1, dst);
-    fwrite(&p_flags, sizeof(int), 1, dst);
-    fwrite(&p_align, sizeof(int), 1, dst);
+    write(fd_dst, &p_type,  4);
+    write(fd_dst, &p_offdet,  4);
+    write(fd_dst, &p_vaddr,  4);
+    write(fd_dst, &p_paddr,  4);
+    write(fd_dst, &p_filesz,  4);
+    write(fd_dst, &p_memsz,  4);
+    write(fd_dst, &p_flags,  4);
+    write(fd_dst, &p_align,  4);
 
 
 }
