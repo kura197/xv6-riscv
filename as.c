@@ -16,7 +16,7 @@ static int dict_num;
 static struct dictinary dict[64];
 
 void elf_init(int fd_dst, int addr);
-int parse(int fd_dst, char str[], int addr, int exec);
+int parse(int fd_dst, char str[], int addr, int exec, char* left);
 int get_reg(char reg_name[]);
 int gen_binary_R(int opcode, int rd, int funct3, int rs1, int rs2, int funct7);
 int gen_binary_I(int opcode, int rd, int funct3, int rs1, int imm);
@@ -24,8 +24,8 @@ int gen_binary_S(int opcode, int funct3, int rs1, int rs2, int imm);
 int gen_binary_B(int opcode, int funct3, int rs1, int rs2, int imm);
 int gen_binary_U(int opcode, int rd, int imm);
 int gen_binary_J(int opcode, int rd, int imm);
-void str2bin(int fd_dst);
-int count_str();
+void str2bin(int fd_dst, char* str);
+int count_str(char* str);
 void set_dict(char* str, int num, int addr);
 int search_dict(char* str);
 char *mystrtok(char *str, char *str1, char *str2);
@@ -33,13 +33,28 @@ int istoken(char ch);
 
 int main(int argc, char* argv[]){
     getarg();
+    /*
     int fd_src, fd_dst;
     char line[128];
     char str[128];
     char left[128];
-    //char *p;
-    //int addr = 0;
+    char *p;
+    int addr = 0;
+    */
 
+    char str[] = "  hello! This is John.\n";
+    char left[128];
+    char string[128];
+    mystrtok(str, string, left);
+    printf(2, "str1 = %s\n", string);
+    printf(2, "left1 = %s\n", left);
+    //mystrtok(str, string, left);
+    //printf(2, "str2 = %s\n", string);
+    //mystrtok(str, string, left);
+    //printf(2, "str3 = %s\n", string);
+    //mystrtok(str, string, left);
+    //printf(2, "str4 = %s\n", string);
+    /*
     if(argc < 3){
         printf(2,"need src and dst names.\n");
         exit();
@@ -54,63 +69,60 @@ int main(int argc, char* argv[]){
     while(fgets(line, 128, fd_src) > 0){
         if(line[0] == '\n')
             continue;
-        /*
         mystrtok(line, str, left);
-        printf(2, "str = %s\n", str);
-        while(1){
-            if(str == 0)
-                break;
-            else{
-                mystrtok(left, str, left);
-                printf(2, "str = %s\n", str);
-            }
-        }
-        printf(2, "\n");
-        */
-        /*
+        //printf(2, "line = %s\n",line);
+        //printf(2, "str = %s\n",str);
+        //printf(2, "left = %s\n\n",left);
         if(str[0] == '.'){
             if(!strcmp(str, ".string"))
-                addr += count_str();
+                addr += count_str(left);
         }
         else if(str[0] == '#')
             continue;
         else if((p = strchr(str, ':')) == 0)
-            addr = parse(fd_dst, str, addr, 0);
+            addr = parse(fd_dst, str, addr, 0, left);
         else
             set_dict(str, (p - str), addr);
-        */
+        
     }
-
+*/
 /*
     if(fseek(fd_src, 0, SEEK_SET) != 0){
         printf(2, "src fdeek filed.\n");
         exit();
     }
 */
+/*
+    close(fd_src);
+    if((fd_src = open(argv[SRC], 0)) < 0){
+        printf(2, "\"%s\" doesn't exist.\n", argv[SRC]);
+        exit();
+    }
     elf_init(fd_dst, addr);
-
     addr = 0;
     while(fgets(line, 128, fd_src) > 0){
         if(line[0] == '\n')
             continue;
-        str = strtok(line, ",\t \n");
+        mystrtok(line, str, left);
         if(str[0] == '.'){
             if(!strcmp(str, ".string"))
-                str2bin(fd_dst);
+                str2bin(fd_dst, left);
         }
         else if(str[0] == '#')
             continue;
         else if((p = strchr(str, ':')) == 0){
-            addr = parse(fd_dst, str, addr, 1);
+            addr = parse(fd_dst, str, addr, 1, left);
         }
     }
 
     int padding = 0;
     for(int i=0; i<50;i++)
         write(fd_dst, &padding, 4);
-
+ */
+/*
     close(fd_src);
     close(fd_dst);
+*/
     exit();
 }
 
@@ -129,46 +141,51 @@ int search_dict(char* str){
     }
     return -1;
 }
-/*
-int parse(int fd_dst, char str[], int addr, int exec){
+
+int parse(int fd_dst, char str[], int addr, int exec, char* left){
     char* operand;
     int rs1, rs2, rd, imm;
     int bin;
+    //printf(2, "left = %s\n",left);
     if(!strcmp(str, "addi")){
-        operand = strtok(NULL, ",\t ");
+        //mystrtok(line, str, left);
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t ");
+        //operand = mystrtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        //operand = mystrtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         imm = atoi(operand);
         bin = gen_binary_I(0b0010011, rd, 0b000, rs1, imm);
 
     }
     //imcomplete
     else if(!strcmp(str, "li")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         imm = atoi(operand);
         bin = gen_binary_I(0b0010011, rd, 0b000, 0, imm);
 
     }
     else if(!strcmp(str, "sw")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rs2 = get_reg(operand);
-        operand = strtok(NULL, ",\t()");
+        operand = mystrtok(left, operand, left);
         imm = atoi(operand);
-        operand = strtok(NULL, ",\t()");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
         bin = gen_binary_S(0b0100011, 0b010, rs2, rs1, imm);
 
     }
     else if(!strcmp(str, "lw")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t()");
+        //operand = mystrtok(NULL, ",\t()");
+        operand = mystrtok(left, operand, left);
         imm = atoi(operand);
-        operand = strtok(NULL, ",\t()");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
         bin = gen_binary_I(0b0000011, rd, 0b010, rs1, imm);
 
@@ -181,28 +198,28 @@ int parse(int fd_dst, char str[], int addr, int exec){
 
     }
     else if(!strcmp(str, "mv")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
         imm = 0;
         bin = gen_binary_I(0b0010011, rd, 0b000, rs1, imm);
 
     }
     else if(!strcmp(str, "sub")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         rs2 = get_reg(operand);
         bin = gen_binary_R(0b0110011, rd, 0b000, rs1, rs2, 0b0100000);
 
     }
     else if(!strcmp(str, "jal")){
-        operand = strtok(NULL, ",\t \n");
-        char* operand2 = strtok(NULL, ",\t \n");
-        if(operand2 == NULL){
+        operand = mystrtok(left, operand, left);
+        char* operand2 = mystrtok(left, operand, left);
+        if(operand2 == 0){
             rd = 1;
             //imm = atoi(operand);
             imm = search_dict(operand);
@@ -215,30 +232,30 @@ int parse(int fd_dst, char str[], int addr, int exec){
 
     }
     else if(!strcmp(str, "j")){
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         //imm = atoi(operand);
         imm = search_dict(operand);
         bin = gen_binary_J(0b1101111, 0, imm);
 
     }
     else if(!strcmp(str, "jalr")){
-        operand = strtok(NULL, ",\t ");
-        char *operand2 = strtok(NULL, ",\t ");
-        if(operand2 == NULL){
+        operand = mystrtok(left, operand, left);
+        char* operand2 = mystrtok(left, operand, left);
+        if(operand2 == 0){
             rd = 1;
             rs1 = get_reg(operand);
             imm = 0;
         }else{
             rd = get_reg(operand);
             rs1 = get_reg(operand2);
-            operand = strtok(NULL, ",\t \n");
+            operand = mystrtok(left, operand, left);
             imm = atoi(operand);
         }
         bin = gen_binary_I(0b1100111, rd, 0b000, rs1, imm);
 
     }
     else if(!strcmp(str, "jr")){
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         rs1 = get_reg(operand);
         bin = gen_binary_I(0b1100111, 0, 0b000, rs1, 0);
 
@@ -248,15 +265,15 @@ int parse(int fd_dst, char str[], int addr, int exec){
 
     }
     else if(!strcmp(str, "auipc")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         imm = atoi(operand);
         bin = gen_binary_U(0b0010111, rd, imm);
 
     }
     else if(!strcmp(str, "call")){
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         imm = search_dict(operand);
         bin = gen_binary_U(0b0010111, 6, (imm >> 12));
         if(exec) write(fd_dst, &bin, 4);
@@ -267,9 +284,9 @@ int parse(int fd_dst, char str[], int addr, int exec){
         bin = 0x73;
     }
     else if(!strcmp(str, "la")){
-        operand = strtok(NULL, ",\t ");
+        operand = mystrtok(left, operand, left);
         rd = get_reg(operand);
-        operand = strtok(NULL, ",\t \n");
+        operand = mystrtok(left, operand, left);
         imm = search_dict(operand) - addr;
         bin = gen_binary_U(0b0010111, rd, (imm & ~0xfff));
         if(exec) write(fd_dst, &bin, 4);
@@ -281,10 +298,11 @@ int parse(int fd_dst, char str[], int addr, int exec){
         return -1;
     }
     if(exec) write(fd_dst, &bin, 4);
+    printf(2, "bin = %08x\n",bin);
     addr += 4;
     return addr;
 }
-*/
+
 int gen_binary_R(int opcode, int rd, int funct3, int rs1, int rs2, int funct7){
     int bin;
     bin = (funct7 << 25) | (rs2 << 20) | (rs1 << 15) | (funct3 << 12) | (rd << 7) | opcode;
@@ -320,10 +338,14 @@ int gen_binary_J(int opcode, int rd, int imm){
     bin = ((imm >> 20) << 31) | (((imm & 0x7fe) >> 1) << 21) | (((imm & 0x800) >> 11) << 20) | (imm & 0xff000) | (rd << 7) | opcode;
     return bin;
 }
-/*
-void str2bin(int fd_dst){
-    char *string = strtok(NULL, "\"");
-    while(*string != '\0'){
+
+void str2bin(int fd_dst, char* str){
+    char *left = 0;
+    char *string = 0;
+    mystrtok(str, string, left);
+    //["string"   \n]
+    string++;
+    while(*string != '\0' && *string != '"'){
         if(*string != '\\')
             write(fd_dst, string, 1);
         else if(*(string+1) == 'n'){
@@ -335,10 +357,14 @@ void str2bin(int fd_dst){
     }
 }
 
-int count_str(){
+
+int count_str(char* str){
     int addr = 0;
-    char *string = strtok(NULL, "\"");
-    while(*string != '\0'){
+    char *string = 0;
+    mystrtok(str, str, string);
+    //["string"   \n]
+    string++;
+    while(*string != '\0' && *string != '"'){
         if(*string != '\\')
             addr += 1;
         else if(*(string+1) == 'n'){
@@ -349,7 +375,6 @@ int count_str(){
     }
     return addr;
 }
-*/
 
 int get_reg(char reg_name[]){
     if(!strcmp(reg_name, "x0") || !strcmp(reg_name, "zero"))
@@ -496,14 +521,19 @@ char *mystrtok(char *str, char *str1, char *str2){
         if(istoken(*idx))   idx++;
         else    break;
     }
-
+    //printf(2, "idx = %s\n",idx);
     //idx points top of a word
-    char *idx2 = idx + 2;
+    char *idx2 = idx + 1;
     str2 = 0;
     str1 = 0;
     while(*idx2 != '\0'){
+        printf(2, "idx2 = %x(%c)\n",*idx2, *idx2);
         if(istoken(*idx2)){
-            strncpy(str1, idx, idx2-idx); 
+            printf(2, "hit!!. idx2 = %x(%c)\n",*idx2, *idx2);
+            printf(2, "idx = %s\n",idx);
+            //strncpy(str1, idx, idx2-idx); 
+            strcpy(str1, idx);
+            printf(2, "str = %s\n",str1);
             str1[idx2-idx] = '\0';
             strcpy(str2, idx2);
             break;
@@ -511,10 +541,12 @@ char *mystrtok(char *str, char *str1, char *str2){
         idx2++;
     }
 
+    //printf(2, "str1 = %s\nstr2 = %s\n",str1, str2);
     return str1;
 }
 
 int istoken(char ch){
+    //if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n' || ch == '(' || ch == ')')
     if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n')
         return 1;
     else
