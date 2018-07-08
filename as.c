@@ -4,6 +4,7 @@
 //#include "header/riscv.h"
 #include "stat.h"
 #include "user.h"
+#include "fcntl.h"
 
 enum file{PROG, SRC, DST};
 
@@ -27,16 +28,19 @@ void str2bin(int fd_dst);
 int count_str();
 void set_dict(char* str, int num, int addr);
 int search_dict(char* str);
+char *mystrtok(char *str, char *str1, char *str2);
+int istoken(char ch);
 
 int main(int argc, char* argv[]){
-    //FILE *src, *dst;
+    getarg();
     int fd_src, fd_dst;
     char line[128];
-    char *str;
-    char *p;
-    int addr = 0;
+    char str[128];
+    char left[128];
+    //char *p;
+    //int addr = 0;
 
-    if(argc != 3){
+    if(argc < 3){
         printf(2,"need src and dst names.\n");
         exit();
     }
@@ -45,13 +49,25 @@ int main(int argc, char* argv[]){
         printf(2, "\"%s\" doesn't exist.\n", argv[SRC]);
         exit();
     }
-    fd_dst = open(argv[DST], 1);
-
+    fd_dst = open(argv[DST], O_CREATE | O_RDWR);
 
     while(fgets(line, 128, fd_src) > 0){
         if(line[0] == '\n')
             continue;
-        str = strtok(line, ",\t \n");
+        /*
+        mystrtok(line, str, left);
+        printf(2, "str = %s\n", str);
+        while(1){
+            if(str == 0)
+                break;
+            else{
+                mystrtok(left, str, left);
+                printf(2, "str = %s\n", str);
+            }
+        }
+        printf(2, "\n");
+        */
+        /*
         if(str[0] == '.'){
             if(!strcmp(str, ".string"))
                 addr += count_str();
@@ -62,14 +78,15 @@ int main(int argc, char* argv[]){
             addr = parse(fd_dst, str, addr, 0);
         else
             set_dict(str, (p - str), addr);
+        */
     }
 
-
+/*
     if(fseek(fd_src, 0, SEEK_SET) != 0){
         printf(2, "src fdeek filed.\n");
         exit();
     }
-
+*/
     elf_init(fd_dst, addr);
 
     addr = 0;
@@ -91,6 +108,7 @@ int main(int argc, char* argv[]){
     int padding = 0;
     for(int i=0; i<50;i++)
         write(fd_dst, &padding, 4);
+
     close(fd_src);
     close(fd_dst);
     exit();
@@ -111,7 +129,7 @@ int search_dict(char* str){
     }
     return -1;
 }
-
+/*
 int parse(int fd_dst, char str[], int addr, int exec){
     char* operand;
     int rs1, rs2, rd, imm;
@@ -266,7 +284,7 @@ int parse(int fd_dst, char str[], int addr, int exec){
     addr += 4;
     return addr;
 }
-
+*/
 int gen_binary_R(int opcode, int rd, int funct3, int rs1, int rs2, int funct7){
     int bin;
     bin = (funct7 << 25) | (rs2 << 20) | (rs1 << 15) | (funct3 << 12) | (rd << 7) | opcode;
@@ -302,7 +320,7 @@ int gen_binary_J(int opcode, int rd, int imm){
     bin = ((imm >> 20) << 31) | (((imm & 0x7fe) >> 1) << 21) | (((imm & 0x800) >> 11) << 20) | (imm & 0xff000) | (rd << 7) | opcode;
     return bin;
 }
-
+/*
 void str2bin(int fd_dst){
     char *string = strtok(NULL, "\"");
     while(*string != '\0'){
@@ -331,6 +349,7 @@ int count_str(){
     }
     return addr;
 }
+*/
 
 int get_reg(char reg_name[]){
     if(!strcmp(reg_name, "x0") || !strcmp(reg_name, "zero"))
@@ -469,4 +488,35 @@ void elf_init(int fd_dst, int addr){
     write(fd_dst, &p_align,  4);
 
 
+}
+
+char *mystrtok(char *str, char *str1, char *str2){
+    char *idx = str;
+    while(1){
+        if(istoken(*idx))   idx++;
+        else    break;
+    }
+
+    //idx points top of a word
+    char *idx2 = idx + 2;
+    str2 = 0;
+    str1 = 0;
+    while(*idx2 != '\0'){
+        if(istoken(*idx2)){
+            strncpy(str1, idx, idx2-idx); 
+            str1[idx2-idx] = '\0';
+            strcpy(str2, idx2);
+            break;
+        }
+        idx2++;
+    }
+
+    return str1;
+}
+
+int istoken(char ch){
+    if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n')
+        return 1;
+    else
+        return 0;
 }
