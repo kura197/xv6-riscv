@@ -30,31 +30,17 @@ void set_dict(char* str, int num, int addr);
 int search_dict(char* str);
 char *mystrtok(char *str, char *str1, char *str2);
 int istoken(char ch);
+char* get_string(char* string, char* str);
 
 int main(int argc, char* argv[]){
     getarg();
-    /*
     int fd_src, fd_dst;
     char line[128];
     char str[128];
     char left[128];
     char *p;
     int addr = 0;
-    */
 
-    char str[] = "  hello! This is John.\n";
-    char left[128];
-    char string[128];
-    mystrtok(str, string, left);
-    printf(2, "str1 = %s\n", string);
-    printf(2, "left1 = %s\n", left);
-    //mystrtok(str, string, left);
-    //printf(2, "str2 = %s\n", string);
-    //mystrtok(str, string, left);
-    //printf(2, "str3 = %s\n", string);
-    //mystrtok(str, string, left);
-    //printf(2, "str4 = %s\n", string);
-    /*
     if(argc < 3){
         printf(2,"need src and dst names.\n");
         exit();
@@ -85,14 +71,12 @@ int main(int argc, char* argv[]){
             set_dict(str, (p - str), addr);
         
     }
-*/
 /*
     if(fseek(fd_src, 0, SEEK_SET) != 0){
         printf(2, "src fdeek filed.\n");
         exit();
     }
 */
-/*
     close(fd_src);
     if((fd_src = open(argv[SRC], 0)) < 0){
         printf(2, "\"%s\" doesn't exist.\n", argv[SRC]);
@@ -118,11 +102,9 @@ int main(int argc, char* argv[]){
     int padding = 0;
     for(int i=0; i<50;i++)
         write(fd_dst, &padding, 4);
- */
-/*
+
     close(fd_src);
     close(fd_dst);
-*/
     exit();
 }
 
@@ -143,7 +125,7 @@ int search_dict(char* str){
 }
 
 int parse(int fd_dst, char str[], int addr, int exec, char* left){
-    char* operand;
+    char* operand = 0;
     int rs1, rs2, rd, imm;
     int bin;
     //printf(2, "left = %s\n",left);
@@ -298,7 +280,7 @@ int parse(int fd_dst, char str[], int addr, int exec, char* left){
         return -1;
     }
     if(exec) write(fd_dst, &bin, 4);
-    printf(2, "bin = %08x\n",bin);
+    //printf(2, "bin = %08x\n",bin);
     addr += 4;
     return addr;
 }
@@ -340,39 +322,42 @@ int gen_binary_J(int opcode, int rd, int imm){
 }
 
 void str2bin(int fd_dst, char* str){
-    char *left = 0;
-    char *string = 0;
-    mystrtok(str, string, left);
-    //["string"   \n]
-    string++;
-    while(*string != '\0' && *string != '"'){
-        if(*string != '\\')
-            write(fd_dst, string, 1);
-        else if(*(string+1) == 'n'){
+    char string[128];
+    char* idx = string;
+    get_string(idx, str);
+    while(*idx != '\0'){
+        if(*idx != '\\')
+            write(fd_dst, idx, 1);
+        else if(*(idx+1) == 'n'){
             char newline = '\n';
             write(fd_dst, &newline, 1);
-            string++;
+            idx++;
         }
-        string++;
+        idx++;
     }
 }
 
 
 int count_str(char* str){
+    //printf(2, "str = %s\n", str);
     int addr = 0;
-    char *string = 0;
-    mystrtok(str, str, string);
+    char string[128];
+    char* idx = string;
+    //mystrtok(str, str, string);
     //["string"   \n]
-    string++;
-    while(*string != '\0' && *string != '"'){
-        if(*string != '\\')
+    //string++;
+    get_string(idx, str);
+    //printf(2, "string = %s\n", idx);
+    while(*idx != '\0'){
+        if(*idx != '\\')
             addr += 1;
-        else if(*(string+1) == 'n'){
+        else if(*(idx+1) == 'n'){
             addr += 1;
-            string++;
+            idx++;
         }
-        string++;
+        idx++;
     }
+    //printf(2, "addr = %d\n",addr);
     return addr;
 }
 
@@ -521,19 +506,12 @@ char *mystrtok(char *str, char *str1, char *str2){
         if(istoken(*idx))   idx++;
         else    break;
     }
-    //printf(2, "idx = %s\n",idx);
     //idx points top of a word
     char *idx2 = idx + 1;
-    str2 = 0;
-    str1 = 0;
     while(*idx2 != '\0'){
-        printf(2, "idx2 = %x(%c)\n",*idx2, *idx2);
         if(istoken(*idx2)){
-            printf(2, "hit!!. idx2 = %x(%c)\n",*idx2, *idx2);
-            printf(2, "idx = %s\n",idx);
-            //strncpy(str1, idx, idx2-idx); 
-            strcpy(str1, idx);
-            printf(2, "str = %s\n",str1);
+            //strcpy(str1, idx);
+            strncpy(str1, idx, idx2-idx); 
             str1[idx2-idx] = '\0';
             strcpy(str2, idx2);
             break;
@@ -546,9 +524,24 @@ char *mystrtok(char *str, char *str1, char *str2){
 }
 
 int istoken(char ch){
-    //if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n' || ch == '(' || ch == ')')
-    if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n')
+    if(ch == ' ' || ch == ',' || ch == '\t' || ch == '\n' || ch == '(' || ch == ')')
         return 1;
     else
         return 0;
+}
+
+char* get_string(char* string, char* str){
+    char *idx = str;
+    while(1){
+        if(*idx != '\"')   idx++;
+        else    break;
+    }
+    idx++;
+    char *idx2 = idx;
+    while(1){
+        if(*idx2 != '\"')   idx2++;
+        else    break;
+    }
+    strncpy(string, idx, idx2-idx);
+    return string;
 }

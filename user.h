@@ -27,11 +27,13 @@ int uptime(void);
 // ulib.c
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);
+char* strncpy(char*, char*, int n);
 void *memmove(void*, void*, int);
 char* strchr(const char*, char c);
 int strcmp(const char*, const char*);
 void printf(int, char*, ...);
 char* gets(char*, int max);
+char* fgets(char*, int max, int fd);
 uint strlen(char*);
 void* memset(void*, int, uint);
 void* malloc(uint);

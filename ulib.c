@@ -15,6 +15,18 @@ strcpy(char *s, char *t)
   return os;
 }
 
+char*
+strncpy(char *s, char *t, int n)
+{
+  char *os;
+  int cnt = 0;
+
+  os = s;
+  while(cnt++ < n && (*s++ = *t++) != 0)
+    ;
+  return os;
+}
+
 int
 strcmp(const char *p, const char *q)
 {
@@ -64,6 +76,27 @@ gets(char *buf, int max)
       break;
   }
   buf[i] = '\0';
+  return buf;
+}
+
+char*
+fgets(char *buf, int max, int fd)
+{
+  int i, cc;
+  char c;
+
+  for(i=0; i+1 < max; ){
+    cc = read(fd, &c, 1);
+    if(cc < 1)
+      break;
+    buf[i++] = c;
+    if(c == '\n' || c == '\r')
+      break;
+  }
+  if(i == 0)
+      buf = 0;
+  else
+    buf[i] = '\0';
   return buf;
 }
 
