@@ -12,7 +12,7 @@ enum state{WAIT, WRITE};
 int main(int argc, char* argv[]){
     getarg();
     int fd_read, fd_write;
-    char ch;
+    char ch[4];
     int state = WAIT;
     char buf[BUF_SIZE];
     int new_file = 0;
@@ -44,22 +44,22 @@ int main(int argc, char* argv[]){
                 if(!new_file){
                     line++;
                     fgets(buf, BUF_SIZE, fd_read);
-                    printf(0, "[%s : %d] %s", argv[RD_TARGET], line, buf);
+                    printf(0, "[line : %d] %s", line, buf);
                 }
                 while(1){
                     printf(0, "[i] : write | [q] : end | [n] : next line\tcmd :");
-                    read(0, &ch, 8);
-                    if(ch == 'i'){
+                    read(0, ch, 4);
+                    if(ch[0] == 'i'){
                         state = WRITE;
                         break;
                     }
-                    else if(ch == 'n'){
+                    else if(ch[0] == 'n'){
                         state = WAIT;
                         if(new_file) printf(fd_write, "\n");
                         else printf(fd_write, "%s", buf);
                         break;
                     }
-                    else if(ch == 'q')
+                    else if(ch[0] == 'q')
                         goto loop_end;
                     else
                         state = WAIT;
