@@ -45,7 +45,6 @@ int main(int argc, char* argv[]){
                     line++;
                     fgets(buf, BUF_SIZE, fd_read);
                     printf(0, "[%s : %d] %s", argv[RD_TARGET], line, buf);
-                    memset(buf, 0, BUF_SIZE);
                 }
                 while(1){
                     printf(0, "[i] : write | [q] : end | [n] : next line\tcmd :");
@@ -57,6 +56,7 @@ int main(int argc, char* argv[]){
                     else if(ch == 'n'){
                         state = WAIT;
                         if(new_file) printf(fd_write, "\n");
+                        else printf(fd_write, "%s", buf);
                         break;
                     }
                     else if(ch == 'q')
@@ -64,6 +64,7 @@ int main(int argc, char* argv[]){
                     else
                         state = WAIT;
                 }
+                memset(buf, 0, BUF_SIZE);
                 break;
             case WRITE:
                 printf(0, "> ");
